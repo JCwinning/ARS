@@ -188,29 +188,43 @@ openrouter_api_key = get_api_key("OPENROUTER_API_KEY", L["openrouter_label"], L[
 dashscope_api_key = get_api_key("DASHSCOPE_API_KEY", L["dashscope_label"], L["dashscope_help"])
 
 # Model selection filtering
-available_stt_models = ["Gemini 2.5 Flash Lite (OpenRouter)"]
-if RIVA_AVAILABLE:
+available_stt_models = []
+if openrouter_api_key:
+    available_stt_models.append("Gemini 2.5 Flash Lite (OpenRouter)")
+if RIVA_AVAILABLE and nvidia_api_key:
     available_stt_models.append("NVIDIA Parakeet-CTC (Cloud)")
-
-# Only allow Local MLX if not on cloud and libraries are available
 if not IS_STREAMLIT_CLOUD and MLX_AVAILABLE:
     available_stt_models.append("MLX-GLM-Nano (Local)")
+
+# Determine default STT
+default_stt = []
+if "Gemini 2.5 Flash Lite (OpenRouter)" in available_stt_models:
+    default_stt = ["Gemini 2.5 Flash Lite (OpenRouter)"]
+elif available_stt_models:
+    default_stt = [available_stt_models[0]]
 
 selected_models = st.sidebar.multiselect(
     L["stt_models_label"],
     available_stt_models,
-    default=["Gemini 2.5 Flash Lite (OpenRouter)"]
+    default=default_stt
 )
 
-available_tts_models = ["Qwen TTS (DashScope)"]
-if RIVA_AVAILABLE:
+available_tts_models = []
+if dashscope_api_key:
+    available_tts_models.append("Qwen TTS (DashScope)")
+if RIVA_AVAILABLE and nvidia_api_key:
     available_tts_models.append("NVIDIA Riva TTS (Cloud)")
 
-selected_tts_model = st.sidebar.selectbox(
-    L["tts_models_label"],
-    available_tts_models,
-    index=0
-)
+selected_tts_model = None
+if available_tts_models:
+    selected_tts_model = st.sidebar.selectbox(
+        L["tts_models_label"],
+        available_tts_models,
+        index=0
+    )
+else:
+    st.sidebar.info("Please enter API keys to enable TTS models.")
+
 
 # --- STT Helper Functions ---
 
@@ -430,10 +444,13 @@ with tab2:
     tts_text = st.text_area(L["tts_text_label"], placeholder=L["tts_placeholder"])
     
     # Dynamic Voice Selection based on Model
+    voices = []
+    default_voice = None
+    
     if selected_tts_model == "Qwen TTS (DashScope)":
         voices = ["Dylan", "Cherry", "Serena", "Ethan", "Chelsie", "Jada", "Sunny"]
         default_voice = "Dylan"
-    else: # Riva / Magpie-TTS
+    elif selected_tts_model == "NVIDIA Riva TTS (Cloud)":
         voices = [
             "Magpie-Multilingual.ZH-CN.Mia", 
             "Magpie-Multilingual.ZH-CN.Aria", 
@@ -446,17 +463,25 @@ with tab2:
 
     col_v, col_b = st.columns([2, 1])
     with col_v:
-        selected_voice = st.selectbox(L["tts_voice_label"], voices, index=voices.index(default_voice))
+        if voices:
+            selected_voice = st.selectbox(L["tts_voice_label"], voices, index=voices.index(default_voice))
+        else:
+            st.selectbox(L["tts_voice_label"], ["No options"], disabled=True)
+            selected_voice = None
+
     with col_b:
         st.write("<br>", unsafe_allow_html=True) # spacing
-        generate_btn = st.button(L["tts_generate_btn"])
+        generate_btn = st.button(L["tts_generate_btn"], disabled=(selected_tts_model is None))
+
 
     if generate_btn and tts_text:
         with st.spinner(L["generating"]):
             if selected_tts_model == "Qwen TTS (DashScope)":
                 audio_content = text_to_speech_qwen(tts_text, selected_voice, dashscope_api_key)
-            else:
+            elif selected_tts_model == "NVIDIA Riva TTS (Cloud)":
                 audio_content = text_to_speech_riva(tts_text, selected_voice, nvidia_api_key)
+            else:
+                audio_content = None
             
             if audio_content:
                 st.audio(audio_content, format='audio/wav')
