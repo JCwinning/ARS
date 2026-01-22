@@ -9,6 +9,11 @@ import requests
 import dashscope
 from pathlib import Path
 from dotenv import load_dotenv
+try:
+    from pydub import AudioSegment
+    PYDUB_AVAILABLE = True
+except ImportError:
+    PYDUB_AVAILABLE = False
 
 # Optional local imports
 try:
@@ -33,7 +38,7 @@ load_dotenv()
 st.set_page_config(
     page_title="Voice Studio - ASR & TTS",
     page_icon="🎙️",
-    layout="centered"
+    layout="wide"
 )
 
 # --- Localization ---
@@ -71,7 +76,9 @@ LOCALES = {
         "processing": "正在处理...",
         "generating": "正在生成语音...",
         "no_model_warning": "⚠️ 请从侧边栏选择至少一个模型。",
-        "local_model_warning": "本地模型未加载。"
+        "local_model_warning": "本地模型未加载。",
+        "stt_download_md": "📥 下载结果 (.md)",
+        "local_model_switch": "🔄 已自动切换本地模型（每次仅限一个）"
     },
     "English": {
         "title": "Voice Studio",
@@ -106,9 +113,38 @@ LOCALES = {
         "processing": "Processing...",
         "generating": "Generating speech...",
         "no_model_warning": "⚠️ Please select at least one model from the sidebar.",
-        "local_model_warning": "Local model not loaded."
+        "local_model_warning": "Local model not loaded.",
+        "stt_download_md": "📥 Download Results (.md)",
+        "local_model_switch": "🔄 Local model switched automatically (one at a time)"
     }
 }
+
+# --- Session State Initialization ---
+if "stt_models" not in st.session_state:
+    st.session_state.stt_models = ["Gemini 2.5 Flash Lite (OpenRouter)"]
+if "prev_stt_models" not in st.session_state:
+    st.session_state.prev_stt_models = ["Gemini 2.5 Flash Lite (OpenRouter)"]
+
+def enforce_mutual_exclusion():
+    """Ensure only one local MLX model can be selected at a time."""
+    current = st.session_state.stt_models
+    prev = st.session_state.prev_stt_models
+    
+    local_models = ["MLX-GLM-Nano (Local)", "MLX-Whisper-Turbo (Local)"]
+    selected_locals = [m for m in current if m in local_models]
+    
+    if len(selected_locals) > 1:
+        # User just added a second local model. Keep the new one, remove the old one.
+        newly_added = [m for m in selected_locals if m not in prev]
+        if newly_added:
+            keep = newly_added[0]
+            st.session_state.stt_models = [m for m in current if m not in local_models or m == keep]
+            st.toast(L["local_model_switch"])
+        else:
+            # Fallback if logic fails: keep Whisper
+            st.session_state.stt_models = [m for m in current if m != "MLX-GLM-Nano (Local)"]
+    
+    st.session_state.prev_stt_models = st.session_state.stt_models
 
 # Language Selector in top right
 # Initialize Session State for Language
@@ -188,56 +224,44 @@ openrouter_api_key = get_api_key("OPENROUTER_API_KEY", L["openrouter_label"], L[
 dashscope_api_key = get_api_key("DASHSCOPE_API_KEY", L["dashscope_label"], L["dashscope_help"])
 
 # Model selection filtering
-available_stt_models = []
-if openrouter_api_key:
-    available_stt_models.append("Gemini 2.5 Flash Lite (OpenRouter)")
-if RIVA_AVAILABLE and nvidia_api_key:
+available_stt_models = ["Gemini 2.5 Flash Lite (OpenRouter)"]
+if RIVA_AVAILABLE:
     available_stt_models.append("NVIDIA Parakeet-CTC (Cloud)")
+
+# Only allow Local MLX if not on cloud and libraries are available
 if not IS_STREAMLIT_CLOUD and MLX_AVAILABLE:
     available_stt_models.append("MLX-GLM-Nano (Local)")
-
-# Determine default STT
-default_stt = []
-if "Gemini 2.5 Flash Lite (OpenRouter)" in available_stt_models:
-    default_stt = ["Gemini 2.5 Flash Lite (OpenRouter)"]
-elif available_stt_models:
-    default_stt = [available_stt_models[0]]
+    available_stt_models.append("MLX-Whisper-Turbo (Local)")
 
 selected_models = st.sidebar.multiselect(
     L["stt_models_label"],
     available_stt_models,
-    default=default_stt
+    key="stt_models",
+    on_change=enforce_mutual_exclusion
 )
 
-available_tts_models = []
-if dashscope_api_key:
-    available_tts_models.append("Qwen TTS (DashScope)")
-if RIVA_AVAILABLE and nvidia_api_key:
+available_tts_models = ["Qwen TTS (DashScope)"]
+if RIVA_AVAILABLE:
     available_tts_models.append("NVIDIA Riva TTS (Cloud)")
 
-selected_tts_model = None
-if available_tts_models:
-    selected_tts_model = st.sidebar.selectbox(
-        L["tts_models_label"],
-        available_tts_models,
-        index=0
-    )
-else:
-    st.sidebar.info("Please enter API keys to enable TTS models.")
-
+selected_tts_model = st.sidebar.selectbox(
+    L["tts_models_label"],
+    available_tts_models,
+    index=0
+)
 
 # --- STT Helper Functions ---
 
 @st.cache_resource
-def get_mlx_model():
+def get_mlx_model(model_id):
     if not MLX_AVAILABLE or IS_STREAMLIT_CLOUD:
         return None
-    with st.spinner("🚀 Loading MLX Model (Local)..."):
+    with st.spinner(f"🚀 Loading {model_id}..."):
         try:
-            model = load_model("mlx-community/GLM-ASR-Nano-2512-4bit")
+            model = load_model(model_id)
             return model
         except Exception as e:
-            st.error(f"❌ Error loading MLX model: {e}")
+            st.error(f"❌ Error loading {model_id}: {e}")
             return None
 
 def encode_audio_to_base64(audio_path):
@@ -401,41 +425,116 @@ with tab1:
 
     if audio_bytes:
         st.audio(audio_bytes, format='audio/wav')
-        st.header(L["stt_results_header"])
+        if "transcription_results" not in st.session_state:
+            st.session_state.transcription_results = {}
         
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp_file:
-            tmp_file.write(audio_bytes)
-            tmp_path = tmp_file.name
+        # Audio Hash for caching
+        import hashlib
+        audio_hash = hashlib.md5(audio_bytes).hexdigest()
+        
+        # Determine if we need to run models
+        needs_processing = "last_audio_hash" not in st.session_state or st.session_state.last_audio_hash != audio_hash
+        
+        if needs_processing:
+            st.session_state.last_audio_hash = audio_hash
+            st.session_state.transcription_results = {}
 
-        try:
-            mlx_model = get_mlx_model() if "MLX-GLM-Nano (Local)" in selected_models else None
-            
-            def process_model(model_name):
-                if model_name == "MLX-GLM-Nano (Local)":
-                    return transcribe_with_mlx(mlx_model, tmp_path) if mlx_model else (L["local_model_warning"], 0)
-                elif model_name == "NVIDIA Parakeet-CTC (Cloud)":
-                    return transcribe_with_riva(tmp_path, nvidia_api_key)
-                elif model_name == "Gemini 2.5 Flash Lite (OpenRouter)":
-                    return transcribe_with_openrouter(tmp_path, openrouter_api_key)
-                return "Unknown model", 0
+        # Create columns and placeholders for all selected models
+        cols = st.columns(len(selected_models)) if selected_models else [st]
+        model_placeholders = {}
+        
+        for idx, model_name in enumerate(selected_models):
+            with cols[idx]:
+                st.subheader(model_name)
+                model_placeholders[model_name] = st.empty()
+                
+                # If already in cache (e.g. from previous run or just finished), show it
+                if model_name in st.session_state.transcription_results:
+                    text, duration = st.session_state.transcription_results[model_name]
+                    with model_placeholders[model_name].container():
+                        st.markdown(f'<div class="transcription-box">{text}</div>', unsafe_allow_html=True)
+                        st.caption(f"⏱️ {duration:.2f}s")
+                        st.download_button(
+                            label=L["stt_download_md"],
+                            data=f"# STT Transcription ({model_name})\n\n{text}",
+                            file_name=f"{model_name.replace(' ', '_')}_transcription.md",
+                            mime="text/markdown",
+                            key=f"dl_{idx}_{audio_hash[:8]}" # Key includes hash to prevent stale buttons
+                        )
+                else:
+                    model_placeholders[model_name].info(f"⏳ {L['processing']}")
 
-            cols = st.columns(len(selected_models)) if selected_models else [st]
-            results = {}
-            with st.spinner(L["processing"]):
+        # Start processing if needed
+        if needs_processing:
+            tmp_path = None
+            try:
+                # 1. Normalize Audio (Force 16kHz, Mono, 16-bit WAV)
+                # This ensures maximum compatibility and accuracy for all ASR models (especially Riva)
+                import io
+                if PYDUB_AVAILABLE:
+                    try:
+                        audio = AudioSegment.from_file(io.BytesIO(audio_bytes))
+                        # Normalize: Mono, 16000Hz, 16-bit (sample_width=2)
+                        audio = audio.set_channels(1).set_frame_rate(16000).set_sample_width(2)
+                        
+                        wav_io = io.BytesIO()
+                        audio.export(wav_io, format="wav")
+                        final_audio_bytes = wav_io.getvalue()
+                    except Exception as e:
+                        st.error(f"❌ Conversion/Normalization Error: {e}")
+                        final_audio_bytes = audio_bytes # Fallback
+                else:
+                    st.warning("⚠️ pydub not found. Using raw audio - this may affect Riva accuracy.")
+                    final_audio_bytes = audio_bytes
+
+                # 2. Save to temporary file
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp_file:
+                    tmp_file.write(final_audio_bytes)
+                    tmp_path = tmp_file.name
+
+                # Load models if selected
+                glm_model = get_mlx_model("mlx-community/GLM-ASR-Nano-2512-4bit") if "MLX-GLM-Nano (Local)" in selected_models else None
+                whisper_model = get_mlx_model("mlx-community/whisper-large-v3-turbo") if "MLX-Whisper-Turbo (Local)" in selected_models else None
+                
+                def process_model(m_name):
+                    try:
+                        if m_name == "MLX-GLM-Nano (Local)":
+                            return transcribe_with_mlx(glm_model, tmp_path) if glm_model else (L["local_model_warning"], 0)
+                        elif m_name == "MLX-Whisper-Turbo (Local)":
+                            return transcribe_with_mlx(whisper_model, tmp_path) if whisper_model else (L["local_model_warning"], 0)
+                        elif m_name == "NVIDIA Parakeet-CTC (Cloud)":
+                            return transcribe_with_riva(tmp_path, nvidia_api_key)
+                        elif m_name == "Gemini 2.5 Flash Lite (OpenRouter)":
+                            return transcribe_with_openrouter(tmp_path, openrouter_api_key)
+                        return "Unknown model", 0
+                    except Exception as e:
+                        return f"Thread Error: {str(e)}", 0
+
                 with concurrent.futures.ThreadPoolExecutor() as executor:
                     futures = {executor.submit(process_model, m): m for m in selected_models}
                     for future in concurrent.futures.as_completed(futures):
                         m = futures[future]
-                        results[m] = future.result()
+                        try:
+                            text, duration = future.result()
+                        except Exception as e:
+                            text, duration = f"Fatal Error: {str(e)}", 0
+                            
+                        st.session_state.transcription_results[m] = (text, duration)
+                        
+                        # Update the specific placeholder immediately
+                        with model_placeholders[m].container():
+                            st.markdown(f'<div class="transcription-box">{text}</div>', unsafe_allow_html=True)
+                            st.caption(f"⏱️ {duration:.2f}s")
+                            st.download_button(
+                                label=L["stt_download_md"],
+                                data=f"# STT Transcription ({m})\n\n{text}",
+                                file_name=f"{m.replace(' ', '_')}_transcription.md",
+                                mime="text/markdown",
+                                key=f"dl_{selected_models.index(m)}_{audio_hash[:8]}"
+                            )
+            finally:
+                if tmp_path and os.path.exists(tmp_path): os.remove(tmp_path)
 
-            for idx, model_name in enumerate(selected_models):
-                text, duration = results.get(model_name, ("Pending...", 0))
-                with cols[idx]:
-                    st.subheader(model_name)
-                    st.markdown(f'<div class="transcription-box">{text}</div>', unsafe_allow_html=True)
-                    st.caption(f"⏱️ {duration:.2f}s")
-        finally:
-            if os.path.exists(tmp_path): os.remove(tmp_path)
     elif not selected_models:
         st.warning(L["no_model_warning"])
 
@@ -444,13 +543,10 @@ with tab2:
     tts_text = st.text_area(L["tts_text_label"], placeholder=L["tts_placeholder"])
     
     # Dynamic Voice Selection based on Model
-    voices = []
-    default_voice = None
-    
     if selected_tts_model == "Qwen TTS (DashScope)":
         voices = ["Dylan", "Cherry", "Serena", "Ethan", "Chelsie", "Jada", "Sunny"]
         default_voice = "Dylan"
-    elif selected_tts_model == "NVIDIA Riva TTS (Cloud)":
+    else: # Riva / Magpie-TTS
         voices = [
             "Magpie-Multilingual.ZH-CN.Mia", 
             "Magpie-Multilingual.ZH-CN.Aria", 
@@ -463,25 +559,17 @@ with tab2:
 
     col_v, col_b = st.columns([2, 1])
     with col_v:
-        if voices:
-            selected_voice = st.selectbox(L["tts_voice_label"], voices, index=voices.index(default_voice))
-        else:
-            st.selectbox(L["tts_voice_label"], ["No options"], disabled=True)
-            selected_voice = None
-
+        selected_voice = st.selectbox(L["tts_voice_label"], voices, index=voices.index(default_voice))
     with col_b:
         st.write("<br>", unsafe_allow_html=True) # spacing
-        generate_btn = st.button(L["tts_generate_btn"], disabled=(selected_tts_model is None))
-
+        generate_btn = st.button(L["tts_generate_btn"])
 
     if generate_btn and tts_text:
         with st.spinner(L["generating"]):
             if selected_tts_model == "Qwen TTS (DashScope)":
                 audio_content = text_to_speech_qwen(tts_text, selected_voice, dashscope_api_key)
-            elif selected_tts_model == "NVIDIA Riva TTS (Cloud)":
-                audio_content = text_to_speech_riva(tts_text, selected_voice, nvidia_api_key)
             else:
-                audio_content = None
+                audio_content = text_to_speech_riva(tts_text, selected_voice, nvidia_api_key)
             
             if audio_content:
                 st.audio(audio_content, format='audio/wav')

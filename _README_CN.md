@@ -14,9 +14,13 @@ https://jcwinning-speech-text-model.share.connect.posit.cloud/
 ### 🎤 语音转文字 (STT)
 - **Google Gemini 2.5 Flash Lite**: 通过 OpenRouter 提供的高速、精准云端转写。
 - **NVIDIA Parakeet-CTC**: 行业领先的 ASR 性能，基于 NVIDIA Riva Cloud。
-- **MLX-GLM-Nano (本地)**: 专为 Apple Silicon 优化的本地私密转写模型（在云端部署环境中将自动禁用）。
+- **本地 MLX 模型**: 专为 Apple Silicon 优化的本地私密转写。
+  - **GLM-ASR-Nano**: 轻量、高效。
+  - **Whisper-Large-v3-Turbo**: 行业顶尖、高精度的转写模型。
 - **双输入模式**: 支持实时麦克风录音或上传音频文件（WAV, MP3, M4A）。
-- **并发处理**: 支持多个模型同时进行转写，方便快速评价转写质量。
+- **即时显示**: 结果在每个模型完成时立即显示，无需等待所有模型。
+- **自动归一化**: 自动将音频转换为 16kHz 单声道 WAV，确保最高识别准确度。
+- **结果下载**: 支持将每个模型的转写结果保存为本地 `.md` 文件。
 
 ### 🔊 文本转语音 (TTS)
 - **Qwen TTS (DashScope)**: 阿里通义千问提供的自然语音合成，内置 7 种性格各异的声音。

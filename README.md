@@ -14,9 +14,13 @@ https://jcwinning-speech-text-model.share.connect.posit.cloud/
 ### 🎤 Speech to Text (STT)
 - **Google Gemini 2.5 Flash Lite**: High-speed, accurate cloud transcription via OpenRouter.
 - **NVIDIA Parakeet-CTC**: Industry-leading ASR performance via NVIDIA Riva Cloud.
-- **MLX-GLM-Nano (Local)**: Fast, private, on-device transcription optimized for Apple Silicon (disabled in cloud environments).
+- **Local MLX Models**: Fast, private, on-device transcription optimized for Apple Silicon.
+  - **GLM-ASR-Nano**: Ultra-lightweight and efficient.
+  - **Whisper-Large-v3-Turbo**: High-accuracy state-of-the-art transcription.
 - **Dual Input**: Support for live microphone recording or file uploads (WAV, MP3, M4A).
-- **Concurrent Processing**: Transcribe using multiple models simultaneously to compare results.
+- **Incremental Display**: Results are displayed in real-time as each model finishes; no waiting for the slowest model.
+- **Auto-Normalization**: Automatically converts and normalizes audio to 16kHz Mono WAV to ensure maximum ASR accuracy.
+- **Download Results**: Save transcription results to localized `.md` files for each model.
 
 ### 🔊 Text to Speech (TTS)
 - **Qwen TTS (DashScope)**: Natural-sounding synthesis with 7 distinct voices (Dylan, Cherry, Serena, etc.).
