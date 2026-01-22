@@ -36,6 +36,95 @@ st.set_page_config(
     layout="centered"
 )
 
+# --- Localization ---
+LOCALES = {
+    "中文": {
+        "title": "Voice Studio",
+        "subtitle": "强大的语音转文字与文字转语音工具集。",
+        "sidebar_header": "⚙️ 配置",
+        "nvidia_label": "NVIDIA API 密钥",
+        "nvidia_help": "从 NVIDIA NIM 获取",
+        "openrouter_label": "OpenRouter API 密钥",
+        "openrouter_help": "从 openrouter.ai 获取",
+        "dashscope_label": "DashScope API 密钥",
+        "dashscope_help": "从阿里云 DashScope 获取",
+        "stt_models_label": "选择语音转文字模型",
+        "tts_models_label": "选择文字转语音模型",
+        "tab1_label": "🎤 语音转文字",
+        "tab2_label": "🔊 文字转语音",
+        "stt_header": "1. 提供音频",
+        "stt_method_label": "选择输入方式：",
+        "stt_method_record": "🎙️ 现场录音",
+        "stt_method_upload": "📁 上传文件",
+        "stt_record_start": "⏺ 开始录音",
+        "stt_record_stop": "⏹ 停止并转写",
+        "stt_upload_label": "上传音频文件 (WAV, MP3, M4A)",
+        "stt_results_header": "2. 转写结果",
+        "tts_header": "3. 生成语音",
+        "tts_text_label": "输入要转换为语音的文字：",
+        "tts_placeholder": "你好，我现在可以说话了！",
+        "tts_voice_label": "选择发音人",
+        "tts_generate_btn": "🎵 生成",
+        "tts_success": "✅ 语音生成成功！",
+        "tts_download": "📥 下载音频",
+        "footer": "由 Gemini, NVIDIA Riva & Qwen TTS 提供技术支持",
+        "processing": "正在处理...",
+        "generating": "正在生成语音...",
+        "no_model_warning": "⚠️ 请从侧边栏选择至少一个模型。",
+        "local_model_warning": "本地模型未加载。"
+    },
+    "English": {
+        "title": "Voice Studio",
+        "subtitle": "A powerful suite for Speech-to-Text and Text-to-Speech transformations.",
+        "sidebar_header": "⚙️ Configuration",
+        "nvidia_label": "NVIDIA API Key",
+        "nvidia_help": "Get from NVIDIA NIM",
+        "openrouter_label": "OpenRouter API Key",
+        "openrouter_help": "Get from openrouter.ai",
+        "dashscope_label": "DashScope API Key",
+        "dashscope_help": "Get from Aliyun DashScope",
+        "stt_models_label": "Select STT Models",
+        "tts_models_label": "Select TTS Model",
+        "tab1_label": "🎤 Speech to Text",
+        "tab2_label": "🔊 Text to Speech",
+        "stt_header": "1. Provide Audio",
+        "stt_method_label": "Select Input Method:",
+        "stt_method_record": "🎙️ Record Live",
+        "stt_method_upload": "📁 Upload File",
+        "stt_record_start": "⏺ Start Recording",
+        "stt_record_stop": "⏹ Stop & Transcribe",
+        "stt_upload_label": "Upload an audio file (WAV, MP3, M4A)",
+        "stt_results_header": "2. Transcription Results",
+        "tts_header": "3. Generate Speech",
+        "tts_text_label": "Enter text to convert to speech:",
+        "tts_placeholder": "Hello, I can speak now!",
+        "tts_voice_label": "Select Voice",
+        "tts_generate_btn": "🎵 Generate",
+        "tts_success": "✅ Speech generated successfully!",
+        "tts_download": "📥 Download Audio",
+        "footer": "Powered by Gemini, NVIDIA Riva & Qwen TTS",
+        "processing": "Processing...",
+        "generating": "Generating speech...",
+        "no_model_warning": "⚠️ Please select at least one model from the sidebar.",
+        "local_model_warning": "Local model not loaded."
+    }
+}
+
+# Language Selector in top right
+# Initialize Session State for Language
+if "language" not in st.session_state:
+    st.session_state.language = "中文"
+
+def toggle_language():
+    st.session_state.language = "English" if st.session_state.language == "中文" else "中文"
+
+# Language Toggle in top right
+col_title, col_lang = st.columns([7, 2])
+with col_lang:
+    st.button("中文/EN", on_click=toggle_language, help="Switch Language / 切换语言")
+
+L = LOCALES[st.session_state.language]
+
 # Detect if running on Streamlit Cloud
 IS_STREAMLIT_CLOUD = os.environ.get("STREAMLIT_RUNTIME_ID") is not None
 
@@ -67,14 +156,21 @@ st.markdown("""
         margin-top: 20px;
         min-height: 100px;
     }
+    /* Language selector positioning tweak */
+    div[data-testid="stHorizontalBlock"] > div:last-child {
+        display: flex;
+        justify-content: flex-end;
+    }
     </style>
     """, unsafe_allow_html=True)
 
-st.title("Voice Studio")
-st.markdown("A powerful suite for Speech-to-Text and Text-to-Speech transformations.")
+with col_title:
+    st.title(L["title"])
+
+st.markdown(L["subtitle"])
 
 # --- Sidebar Configuration ---
-st.sidebar.header("⚙️ Configuration")
+st.sidebar.header(L["sidebar_header"])
 
 # API Keys handling
 def get_api_key(key_name, label, help_text):
@@ -87,9 +183,9 @@ def get_api_key(key_name, label, help_text):
     
     return api_key
 
-nvidia_api_key = get_api_key("NVIDIA_API_KEY", "NVIDIA API Key", "Get from NVIDIA NIM")
-openrouter_api_key = get_api_key("OPENROUTER_API_KEY", "OpenRouter API Key", "Get from openrouter.ai")
-dashscope_api_key = get_api_key("DASHSCOPE_API_KEY", "DashScope API Key", "Get from Aliyun DashScope")
+nvidia_api_key = get_api_key("NVIDIA_API_KEY", L["nvidia_label"], L["nvidia_help"])
+openrouter_api_key = get_api_key("OPENROUTER_API_KEY", L["openrouter_label"], L["openrouter_help"])
+dashscope_api_key = get_api_key("DASHSCOPE_API_KEY", L["dashscope_label"], L["dashscope_help"])
 
 # Model selection filtering
 available_stt_models = ["Gemini 2.5 Flash Lite (OpenRouter)"]
@@ -101,7 +197,7 @@ if not IS_STREAMLIT_CLOUD and MLX_AVAILABLE:
     available_stt_models.append("MLX-GLM-Nano (Local)")
 
 selected_models = st.sidebar.multiselect(
-    "Select STT Models",
+    L["stt_models_label"],
     available_stt_models,
     default=["Gemini 2.5 Flash Lite (OpenRouter)"]
 )
@@ -111,7 +207,7 @@ if RIVA_AVAILABLE:
     available_tts_models.append("NVIDIA Riva TTS (Cloud)")
 
 selected_tts_model = st.sidebar.selectbox(
-    "Select TTS Model",
+    L["tts_models_label"],
     available_tts_models,
     index=0
 )
@@ -156,7 +252,7 @@ def transcribe_with_mlx(model, audio_path):
         return f"Error: {e}", 0
 
 def transcribe_with_riva(audio_path, api_key):
-    if not api_key: return "❌ Missing NVIDIA API Key", 0
+    if not api_key: return f"❌ {L['nvidia_label']} Missing", 0
     try:
         start_time = time.time()
         auth = riva.client.Auth(
@@ -181,7 +277,7 @@ def transcribe_with_riva(audio_path, api_key):
         return f"Riva Error: {str(e)}", 0
 
 def transcribe_with_openrouter(audio_path, api_key):
-    if not api_key: return "❌ Missing OpenRouter API Key", 0
+    if not api_key: return f"❌ {L['openrouter_label']} Missing", 0
     try:
         start_time = time.time()
         audio_base64 = encode_audio_to_base64(audio_path)
@@ -213,7 +309,7 @@ def transcribe_with_openrouter(audio_path, api_key):
 
 def text_to_speech_qwen(text, voice, api_key):
     if not api_key:
-        st.error("❌ DashScope API Key not found.")
+        st.error(f"❌ {L['dashscope_label']} NOT Found")
         return None
     try:
         response = dashscope.audio.qwen_tts.SpeechSynthesizer.call(
@@ -224,7 +320,7 @@ def text_to_speech_qwen(text, voice, api_key):
             audio_response = requests.get(audio_url, timeout=60)
             if audio_response.status_code == 200:
                 return audio_response.content
-        st.error("❌ Failed to generate or download audio.")
+        st.error("❌ Synthesis failed.")
         return None
     except Exception as e:
         st.error(f"❌ TTS Error: {str(e)}")
@@ -232,12 +328,12 @@ def text_to_speech_qwen(text, voice, api_key):
 
 def text_to_speech_riva(text, voice, api_key):
     if not api_key:
-        st.error("❌ NVIDIA API Key not found.")
+        st.error(f"❌ {L['nvidia_label']} NOT Found")
         return None
     try:
         auth = riva.client.Auth(
             uri="grpc.nvcf.nvidia.com:443", use_ssl=True,
-            metadata_args=[["function-id", "877104f7-e885-42b9-8de8-f6e4c6303969"], # Updated Magpie-TTS function id
+            metadata_args=[["function-id", "877104f7-e885-42b9-8de8-f6e4c6303969"],
                           ["authorization", f"Bearer {api_key}"]]
         )
         service = riva.client.SpeechSynthesisService(auth)
@@ -254,7 +350,7 @@ def text_to_speech_riva(text, voice, api_key):
         )
         
         if not response or not response.audio:
-            st.error("❌ Riva returned an empty audio response.")
+            st.error("❌ Riva empty response.")
             return None
 
         # Riva returns raw audio, wrap it in WAV
@@ -275,23 +371,23 @@ def text_to_speech_riva(text, voice, api_key):
         return None
 
 # --- Main Tabs ---
-tab1, tab2 = st.tabs(["🎤 Speech to Text", "🔊 Text to Speech"])
+tab1, tab2 = st.tabs([L["tab1_label"], L["tab2_label"]])
 
 with tab1:
-    st.header("1. Provide Audio")
-    input_method = st.radio("Select Input Method:", ["🎙️ Record Live", "📁 Upload File"], horizontal=True)
+    st.header(L["stt_header"])
+    input_method = st.radio(L["stt_method_label"], [L["stt_method_record"], L["stt_method_upload"]], horizontal=True)
 
     audio_bytes = None
-    if input_method == "🎙️ Record Live":
-        audio = mic_recorder(start_prompt="⏺ Start Recording", stop_prompt="⏹ Stop & Transcribe", key='recorder', format='wav')
+    if input_method == L["stt_method_record"]:
+        audio = mic_recorder(start_prompt=L["stt_record_start"], stop_prompt=L["stt_record_stop"], key='recorder', format='wav')
         if audio: audio_bytes = audio['bytes']
     else:
-        uploaded_file = st.file_uploader("Upload an audio file (WAV, MP3, M4A)", type=["wav", "mp3", "m4a"])
+        uploaded_file = st.file_uploader(L["stt_upload_label"], type=["wav", "mp3", "m4a"])
         if uploaded_file: audio_bytes = uploaded_file.read()
 
     if audio_bytes:
         st.audio(audio_bytes, format='audio/wav')
-        st.header("2. Transcription Results")
+        st.header(L["stt_results_header"])
         
         with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp_file:
             tmp_file.write(audio_bytes)
@@ -302,7 +398,7 @@ with tab1:
             
             def process_model(model_name):
                 if model_name == "MLX-GLM-Nano (Local)":
-                    return transcribe_with_mlx(mlx_model, tmp_path) if mlx_model else ("Local model not loaded.", 0)
+                    return transcribe_with_mlx(mlx_model, tmp_path) if mlx_model else (L["local_model_warning"], 0)
                 elif model_name == "NVIDIA Parakeet-CTC (Cloud)":
                     return transcribe_with_riva(tmp_path, nvidia_api_key)
                 elif model_name == "Gemini 2.5 Flash Lite (OpenRouter)":
@@ -311,7 +407,7 @@ with tab1:
 
             cols = st.columns(len(selected_models)) if selected_models else [st]
             results = {}
-            with st.spinner("Processing..."):
+            with st.spinner(L["processing"]):
                 with concurrent.futures.ThreadPoolExecutor() as executor:
                     futures = {executor.submit(process_model, m): m for m in selected_models}
                     for future in concurrent.futures.as_completed(futures):
@@ -327,11 +423,11 @@ with tab1:
         finally:
             if os.path.exists(tmp_path): os.remove(tmp_path)
     elif not selected_models:
-        st.warning("⚠️ Please select at least one model from the sidebar.")
+        st.warning(L["no_model_warning"])
 
 with tab2:
-    st.header("3. Generate Speech")
-    tts_text = st.text_area("Enter text to convert to speech:", placeholder="Hello, I can speak now!")
+    st.header(L["tts_header"])
+    tts_text = st.text_area(L["tts_text_label"], placeholder=L["tts_placeholder"])
     
     # Dynamic Voice Selection based on Model
     if selected_tts_model == "Qwen TTS (DashScope)":
@@ -350,13 +446,13 @@ with tab2:
 
     col_v, col_b = st.columns([2, 1])
     with col_v:
-        selected_voice = st.selectbox("Select Voice", voices, index=voices.index(default_voice))
+        selected_voice = st.selectbox(L["tts_voice_label"], voices, index=voices.index(default_voice))
     with col_b:
         st.write("<br>", unsafe_allow_html=True) # spacing
-        generate_btn = st.button("🎵 Generate")
+        generate_btn = st.button(L["tts_generate_btn"])
 
     if generate_btn and tts_text:
-        with st.spinner(f"Generating speech with {selected_tts_model}..."):
+        with st.spinner(L["generating"]):
             if selected_tts_model == "Qwen TTS (DashScope)":
                 audio_content = text_to_speech_qwen(tts_text, selected_voice, dashscope_api_key)
             else:
@@ -364,9 +460,9 @@ with tab2:
             
             if audio_content:
                 st.audio(audio_content, format='audio/wav')
-                st.success("✅ Speech generated successfully!")
-                st.download_button("📥 Download Audio", audio_content, file_name="speech.wav", mime="audio/wav")
+                st.success(L["tts_success"])
+                st.download_button(L["tts_download"], audio_content, file_name="speech.wav", mime="audio/wav")
 
 # Footer
 st.markdown("---")
-st.caption("Powered by Gemini, NVIDIA Riva & Qwen TTS")
+st.caption(L["footer"])
