@@ -121,9 +121,9 @@ LOCALES = {
 
 # --- Session State Initialization ---
 if "stt_models" not in st.session_state:
-    st.session_state.stt_models = ["Gemini 2.5 Flash Lite (OpenRouter)"]
+    st.session_state.stt_models = []
 if "prev_stt_models" not in st.session_state:
-    st.session_state.prev_stt_models = ["Gemini 2.5 Flash Lite (OpenRouter)"]
+    st.session_state.prev_stt_models = []
 
 def enforce_mutual_exclusion():
     """Ensure only one local MLX model can be selected at a time."""
@@ -224,14 +224,19 @@ openrouter_api_key = get_api_key("OPENROUTER_API_KEY", L["openrouter_label"], L[
 dashscope_api_key = get_api_key("DASHSCOPE_API_KEY", L["dashscope_label"], L["dashscope_help"])
 
 # Model selection filtering
-available_stt_models = ["Gemini 2.5 Flash Lite (OpenRouter)"]
-if RIVA_AVAILABLE:
+available_stt_models = []
+if openrouter_api_key:
+    available_stt_models.append("Gemini 2.5 Flash Lite (OpenRouter)")
+if RIVA_AVAILABLE and nvidia_api_key:
     available_stt_models.append("NVIDIA Parakeet-CTC (Cloud)")
 
 # Only allow Local MLX if not on cloud and libraries are available
 if not IS_STREAMLIT_CLOUD and MLX_AVAILABLE:
     available_stt_models.append("MLX-GLM-Nano (Local)")
     available_stt_models.append("MLX-Whisper-Turbo (Local)")
+
+# Filter session state to only include currently available models (e.g. if key was removed)
+st.session_state.stt_models = [m for m in st.session_state.stt_models if m in available_stt_models]
 
 selected_models = st.sidebar.multiselect(
     L["stt_models_label"],
@@ -240,15 +245,21 @@ selected_models = st.sidebar.multiselect(
     on_change=enforce_mutual_exclusion
 )
 
-available_tts_models = ["Qwen TTS (DashScope)"]
-if RIVA_AVAILABLE:
+available_tts_models = []
+if dashscope_api_key:
+    available_tts_models.append("Qwen TTS (DashScope)")
+if RIVA_AVAILABLE and nvidia_api_key:
     available_tts_models.append("NVIDIA Riva TTS (Cloud)")
 
-selected_tts_model = st.sidebar.selectbox(
-    L["tts_models_label"],
-    available_tts_models,
-    index=0
-)
+if not available_tts_models:
+    st.sidebar.warning("⚠️ No TTS models available. Please provide an API key.")
+    selected_tts_model = None
+else:
+    selected_tts_model = st.sidebar.selectbox(
+        L["tts_models_label"],
+        available_tts_models,
+        index=0
+    )
 
 # --- STT Helper Functions ---
 
