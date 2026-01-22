@@ -122,6 +122,8 @@ LOCALES = {
 # --- Session State Initialization ---
 if "stt_models" not in st.session_state:
     st.session_state.stt_models = []
+if "initialized_stt" not in st.session_state:
+    st.session_state.initialized_stt = False
 if "prev_stt_models" not in st.session_state:
     st.session_state.prev_stt_models = []
 
@@ -237,6 +239,11 @@ if not IS_STREAMLIT_CLOUD and MLX_AVAILABLE:
 
 # Filter session state to only include currently available models (e.g. if key was removed)
 st.session_state.stt_models = [m for m in st.session_state.stt_models if m in available_stt_models]
+
+# Set default selection if not yet initialized and models are available
+if not st.session_state.initialized_stt and available_stt_models:
+    st.session_state.stt_models = [available_stt_models[0]]
+    st.session_state.initialized_stt = True
 
 selected_models = st.sidebar.multiselect(
     L["stt_models_label"],
