@@ -1,4 +1,7 @@
 streamlit
+requests
+dashscope
+python-dotenv
+nvidia-riva-client
 mlx-audio
 streamlit-mic-recorder
-numpy
