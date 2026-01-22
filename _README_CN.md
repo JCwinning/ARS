@@ -4,6 +4,11 @@
 
 一个强大且美观的 Streamlit 应用，集成了 **自动语音识别 (ASR)** 和 **文本转语音 (TTS)** 功能。本项目旨在提供一个便捷的平台，用于对比 NVIDIA、Google 的前沿云端模型与本地 MLX 优化模型的表现。
 
+## 在线演示
+
+https://jcwinning-speech-text-model.share.connect.posit.cloud/
+
+
 ## ✨ 核心功能
 
 ### 🎤 语音转文字 (STT)
@@ -65,4 +70,5 @@ streamlit run app.py
 - **音频处理**: Wave, SoundFile, Streamlit Mic Recorder
 
 ---
-*为先进的 AI 语音工作流而生。*
+
+

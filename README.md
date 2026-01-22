@@ -4,6 +4,11 @@
 
 A powerful, multi-model Streamlit application for **Automatic Speech Recognition (ASR)** and **Text-to-Speech (TTS)**. This project allows users to compare state-of-the-art cloud models from NVIDIA and Google with local MLX-optimized models.
 
+## Live demo
+
+https://jcwinning-speech-text-model.share.connect.posit.cloud/
+
+
 ## ✨ Features
 
 ### 🎤 Speech to Text (STT)
