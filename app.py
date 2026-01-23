@@ -9,36 +9,42 @@ import requests
 import dashscope
 from pathlib import Path
 from dotenv import load_dotenv
-try:
-    from pydub import AudioSegment
-    PYDUB_AVAILABLE = True
-except ImportError:
-    PYDUB_AVAILABLE = False
 
-# --- Initialize FFmpeg (using ffbinaries for platforms like Posit Connect Cloud) ---
+# --- Initialize FFmpeg (Must be done before pydub import to avoid warnings) ---
+FFMPEG_READY = False
 try:
     import ffbinaries
     ff_dir = "/tmp/ffmpeg_bin"
     if not os.path.exists(ff_dir):
-        os.makedirs(ff_dir)
+        os.makedirs(ff_dir, exist_ok=True)
     
-    # Check if binaries already exist to avoid re-downloading
     ffmpeg_exe = os.path.join(ff_dir, "ffmpeg")
     ffprobe_exe = os.path.join(ff_dir, "ffprobe")
     
     if not (os.path.exists(ffmpeg_exe) and os.path.exists(ffprobe_exe)):
         ffbinaries.download_binaries(ff_dir, ['ffmpeg', 'ffprobe'])
     
+    # Ensure they are executable
+    if os.path.exists(ffmpeg_exe):
+        os.chmod(ffmpeg_exe, 0o755)
+    if os.path.exists(ffprobe_exe):
+        os.chmod(ffprobe_exe, 0o755)
+        
     # Add to system PATH
     os.environ["PATH"] += os.pathsep + ff_dir
-    
-    # Explicitly tell pydub where they are
-    if PYDUB_AVAILABLE:
-        from pydub import AudioSegment
+    FFMPEG_READY = True
+except Exception as e:
+    print(f"FFmpeg Boot Error: {e}")
+
+try:
+    from pydub import AudioSegment
+    PYDUB_AVAILABLE = True
+    # Explicitly link pydub to the /tmp binaries
+    if FFMPEG_READY:
         AudioSegment.converter = ffmpeg_exe
         AudioSegment.ffprobe = ffprobe_exe
-except Exception as e:
-    st.warning(f"⚠️ FFmpeg initialization failed: {e}")
+except ImportError:
+    PYDUB_AVAILABLE = False
 
 # Optional local imports
 try:
