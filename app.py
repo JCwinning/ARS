@@ -15,6 +15,13 @@ try:
 except ImportError:
     PYDUB_AVAILABLE = False
 
+# --- Initialize static-ffmpeg (for platforms like Posit Connect Cloud) ---
+try:
+    import static_ffmpeg
+    static_ffmpeg.add_paths()
+except ImportError:
+    pass
+
 # Optional local imports
 try:
     import riva.client
