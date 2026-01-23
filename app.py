@@ -15,13 +15,30 @@ try:
 except ImportError:
     PYDUB_AVAILABLE = False
 
-# --- Initialize static-ffmpeg (for platforms like Posit Connect Cloud) ---
+# --- Initialize FFmpeg (using ffbinaries for platforms like Posit Connect Cloud) ---
 try:
-    import static_ffmpeg
-    # Use /tmp for the download/lock directory to avoid PermissionError in read-only site-packages
-    static_ffmpeg.add_paths(download_dir='/tmp/ffmpeg_bin')
+    import ffbinaries
+    ff_dir = "/tmp/ffmpeg_bin"
+    if not os.path.exists(ff_dir):
+        os.makedirs(ff_dir)
+    
+    # Check if binaries already exist to avoid re-downloading
+    ffmpeg_exe = os.path.join(ff_dir, "ffmpeg")
+    ffprobe_exe = os.path.join(ff_dir, "ffprobe")
+    
+    if not (os.path.exists(ffmpeg_exe) and os.path.exists(ffprobe_exe)):
+        ffbinaries.download_binaries(ff_dir, ['ffmpeg', 'ffprobe'])
+    
+    # Add to system PATH
+    os.environ["PATH"] += os.pathsep + ff_dir
+    
+    # Explicitly tell pydub where they are
+    if PYDUB_AVAILABLE:
+        from pydub import AudioSegment
+        AudioSegment.converter = ffmpeg_exe
+        AudioSegment.ffprobe = ffprobe_exe
 except Exception as e:
-    st.warning(f"⚠️ static-ffmpeg initialization failed: {e}")
+    st.warning(f"⚠️ FFmpeg initialization failed: {e}")
 
 # Optional local imports
 try:
