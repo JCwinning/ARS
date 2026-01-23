@@ -7,50 +7,11 @@ import concurrent.futures
 import base64
 import requests
 import dashscope
-import shutil
 from pathlib import Path
 from dotenv import load_dotenv
-
-# --- Initialize FFmpeg (Enhanced for Cloud) ---
-FFMPEG_READY = False
-ffmpeg_exe = shutil.which("ffmpeg")
-ffprobe_exe = shutil.which("ffprobe")
-
-if not ffmpeg_exe or not ffprobe_exe:
-    try:
-        import ffbinaries
-        ff_dir = "/tmp/ffmpeg_bin"
-        os.makedirs(ff_dir, exist_ok=True)
-        
-        # Check /tmp first
-        temp_ffmpeg = os.path.join(ff_dir, "ffmpeg")
-        temp_ffprobe = os.path.join(ff_dir, "ffprobe")
-        
-        if not (os.path.exists(temp_ffmpeg) and os.path.exists(temp_ffprobe)):
-            print(f"Downloading FFmpeg binaries to {ff_dir}...")
-            ffbinaries.download_binaries(ff_dir, ['ffmpeg', 'ffprobe'])
-        
-        ffmpeg_exe = temp_ffmpeg if os.path.exists(temp_ffmpeg) else ffmpeg_exe
-        ffprobe_exe = temp_ffprobe if os.path.exists(temp_ffprobe) else ffprobe_exe
-        
-        if ffmpeg_exe: os.chmod(ffmpeg_exe, 0o755)
-        if ffprobe_exe: os.chmod(ffprobe_exe, 0o755)
-    except Exception as e:
-        print(f"FFmpeg Download Failed: {e}")
-
-if ffmpeg_exe:
-    os.environ["PATH"] += os.pathsep + os.path.dirname(ffmpeg_exe)
-    FFMPEG_READY = True
-    print(f"FFmpeg found at: {ffmpeg_exe}")
-else:
-    print("FFmpeg NOT found in system or /tmp")
-
 try:
     from pydub import AudioSegment
     PYDUB_AVAILABLE = True
-    if FFMPEG_READY:
-        AudioSegment.converter = ffmpeg_exe
-        AudioSegment.ffprobe = ffprobe_exe
 except ImportError:
     PYDUB_AVAILABLE = False
 

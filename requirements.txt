@@ -6,4 +6,3 @@ nvidia-riva-client
 mlx-audio
 streamlit-mic-recorder
 pydub
-ffbinaries
