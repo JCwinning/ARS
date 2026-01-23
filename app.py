@@ -18,9 +18,10 @@ except ImportError:
 # --- Initialize static-ffmpeg (for platforms like Posit Connect Cloud) ---
 try:
     import static_ffmpeg
-    static_ffmpeg.add_paths()
-except ImportError:
-    pass
+    # Use /tmp for the download/lock directory to avoid PermissionError in read-only site-packages
+    static_ffmpeg.add_paths(download_dir='/tmp/ffmpeg_bin')
+except Exception as e:
+    st.warning(f"⚠️ static-ffmpeg initialization failed: {e}")
 
 # Optional local imports
 try:
